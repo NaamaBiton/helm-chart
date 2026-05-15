@@ -1,0 +1,14 @@
+apiVersion: v1
+entries:
+  generic-app:
+  - apiVersion: v2
+    appVersion: 1.0.0
+    created: "2026-05-15T07:56:20.826710322Z"
+    description: A generic Helm chart for deploying applications to EKS
+    digest: 907beb34e032778672ad86067e63c8f262eedac0959ec898fbe3e38e22c9f001
+    name: generic-app
+    type: application
+    urls:
+    - https://github.com/NaamaBiton/helm-chart/releases/download/generic-app-0.1.1/generic-app-0.1.1.tgz
+    version: 0.1.1
+generated: "2026-05-15T07:56:20.826716694Z"
