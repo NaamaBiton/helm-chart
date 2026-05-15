@@ -1,0 +1,107 @@
+{{/*
+Standard labels for all resources
+*/}}
+{{- define "generic-app.labels" -}}
+{{- if .app }}
+app.kubernetes.io/name: {{ .app.name }}
+app.kubernetes.io/component: {{ .app.type | default "server" }}
+{{- else }}
+app.kubernetes.io/name: {{ .Chart.Name }}
+app.kubernetes.io/component: {{ .component | default "application" }}
+{{- end }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/version: {{ .Chart.Version }}
+app.kubernetes.io/part-of: {{ .Release.Namespace }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- if .Values.projectName }}
+app: {{ .Values.projectName }}
+{{- end }}
+{{- if .Values.environment }}
+environment: {{ .Values.environment }}
+{{- end }}
+{{- if .app }}
+component: {{ .app.type }}
+{{- end }}
+{{- if .Values.aws.region }}
+aws.amazon.com/region: {{ .Values.aws.region }}
+{{- end }}
+{{- if .Values.projectName }}
+aws.amazon.com/project: {{ .Values.projectName }}
+{{- end }}
+{{- if .Values.environment }}
+aws.amazon.com/environment: {{ .Values.environment }}
+{{- end }}
+{{- end -}}
+
+{{/*
+Selector labels for deployments and services
+*/}}
+{{- define "generic-app.selectorLabels" -}}
+{{- if .app }}
+app.kubernetes.io/name: {{ .app.name }}
+app.kubernetes.io/component: {{ .app.type }}
+{{- else }}
+app.kubernetes.io/name: {{ .Chart.Name }}
+{{- end }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end -}}
+
+{{/*
+Standard annotations for all resources
+*/}}
+{{- define "generic-app.annotations" -}}
+meta.helm.sh/release-name: {{ .Release.Name }}
+meta.helm.sh/release-namespace: {{ .Release.Namespace }}
+{{- if .Chart.Version }}
+meta.helm.sh/release-version: {{ .Chart.Version }}
+{{- end }}
+{{- if .Values.aws.region }}
+aws.amazon.com/region: {{ .Values.aws.region }}
+{{- end }}
+{{- end -}}
+
+{{/*
+Annotations for external secrets
+*/}}
+{{- define "generic-app.externalSecretsAnnotations" -}}
+{{- include "generic-app.annotations" . | nindent 0 }}
+secret.kubernetes.io/managed-by: "External-Secrets"
+secret.kubernetes.io/version: {{ .Chart.Version }}
+secret.kubernetes.io/rotation: "enabled"
+secret.kubernetes.io/encryption: "aws-kms"
+{{- end -}}
+
+{{/*
+Annotations for configmaps
+*/}}
+{{- define "generic-app.configMapAnnotations" -}}
+{{- include "generic-app.annotations" . | nindent 0 }}
+config.kubernetes.io/managed-by: "Helm"
+config.kubernetes.io/version: {{ .Chart.Version }}
+{{- end -}}
+
+{{/*
+Annotations for service accounts
+*/}}
+{{- define "generic-app.serviceAccountAnnotations" -}}
+{{- include "generic-app.annotations" . | nindent 0 }}
+serviceaccount.kubernetes.io/managed-by: "Helm"
+serviceaccount.kubernetes.io/version: {{ .Chart.Version }}
+serviceaccount.kubernetes.io/rotation: "enabled"
+serviceaccount.kubernetes.io/audit: "enabled"
+{{- end -}}
+
+{{/*
+Annotations for ingress resources
+*/}}
+{{- define "generic-app.ingressAnnotations" -}}
+{{- include "generic-app.annotations" . | nindent 0 }}
+alb.ingress.kubernetes.io/ssl-redirect: "{{ .Values.ingress.sslRedirect }}"
+alb.ingress.kubernetes.io/listen-ports: {{ .Values.ingress.listenPorts | toJson }}
+alb.ingress.kubernetes.io/certificate-arn: {{ join "," .Values.ingress.certificateArns }}
+alb.ingress.kubernetes.io/target-type: ip
+alb.ingress.kubernetes.io/tags: |
+  Project={{ .Values.projectName }},
+  Environment={{ .Values.environment }},
+  ManagedBy=Helm
+{{- end -}}

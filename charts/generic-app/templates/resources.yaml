@@ -1,0 +1,13 @@
+{{- define "generic-app.resources"}}
+{{- $app := .app}}
+{{- $defaults := .Values.defaults}}
+{{- $appType := $app.type}}
+{{- $typeDefaults := index $defaults $appType}}
+resources:
+  requests:
+    memory: {{($app.resources).requests.memory | default $typeDefaults.resources.requests.memory}}
+    cpu: {{($app.resources).requests.cpu | default $typeDefaults.resources.requests.cpu}}
+  limits:
+    memory: {{($app.resources).limits.memory | default $typeDefaults.resources.limits.memory}}
+    cpu: {{($app.resources).limits.cpu | default $typeDefaults.resources.limits.cpu}}
+{{- end}}

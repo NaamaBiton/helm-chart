@@ -1,0 +1,91 @@
+---
+# Deny traffic from other namespaces (keep this - it's standard Kubernetes)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: deny-from-other-namespaces
+  namespace: {{$.Values.environment}}-{{$.Values.projectName}}
+  labels:
+    {{- include "generic-app.labels" (dict "Chart" $.Chart "Release" $.Release "Values" $.Values "component" "network-policy") | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector: {}  # Allows traffic only from within the same namespace
+---
+
+# Allow traffic from EKS-specific system namespaces
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-from-eks-system
+  namespace: {{$.Values.environment}}-{{$.Values.projectName}}
+  labels:
+    {{- include "generic-app.labels" (dict "Chart" $.Chart "Release" $.Release "Values" $.Values "component" "network-policy") | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        # AWS Load Balancer Controller / CoreDNS
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+        # EKS system components
+        - namespaceSelector:
+            matchLabels:
+              name: aws-load-balancer-webhook-system
+        # Allow from ingress-nginx if using nginx ingress controller
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+        - namespaceSelector:
+            matchLabels:
+              name: external-secrets-system
+        # If using prometheus/monitoring
+        {{- if and .Values.monitoring .Values.monitoring.enabled}}
+        - namespaceSelector:
+            matchLabels:
+              name: {{.Values.monitoring.namespace | default "monitoring"}}
+        {{- end}}
+---
+
+# Optional: Allow egress to AWS services (if you need to restrict egress)
+{{- if .Values.networkPolicy.restrictEgress}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-to-aws
+  namespace: {{$.Values.environment}}-{{$.Values.projectName}}
+  labels:
+    {{- include "generic-app.labels" (dict "Chart" $.Chart "Release" $.Release "Values" $.Values "component" "network-policy") | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    # Allow DNS
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
+    # Allow HTTPS to AWS services
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 443
+    # Allow HTTP for internal cluster communication
+    - to:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 80
+    - to:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 8080
+{{- end}}

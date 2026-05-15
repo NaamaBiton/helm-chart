@@ -1,0 +1,26 @@
+---
+projectName: "my-app"
+environment: "dev"
+applications:
+  - type: client
+    name: "main"
+    imageRepo: "<YOUR_AWS_ACCOUNT_ID>.dkr.ecr.<YOUR_AWS_REGION>.amazonaws.com/my-app/client"
+    imageTag: "v1.0.0"
+    replicas: 2
+    ingress:
+      enabled: true
+      host: "my-app.example.com"
+      path: "/"
+
+  - type: server
+    name: "main"
+    imageRepo: "<YOUR_AWS_ACCOUNT_ID>.dkr.ecr.<YOUR_AWS_REGION>.amazonaws.com/my-app/server"
+    imageTag: "v1.0.0"
+    replicas: 3
+    probePath: "/health"
+    awsRole: "arn:aws:iam::<YOUR_AWS_ACCOUNT_ID>:role/my-app-server-role"
+    secrets:
+      - name: "db-credentials"
+        path: "my-app/dev/server/database"
+      - name: "jwt-secret"
+        path: "my-app/dev/server/auth"

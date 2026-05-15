@@ -1,0 +1,67 @@
+---
+defaults:
+  nginx:
+    port: 80
+    version: v3
+    image: "<YOUR_AWS_ACCOUNT_ID>.dkr.ecr.<YOUR_AWS_REGION>.amazonaws.com/nginx"
+    serviceType: ClusterIP
+
+  client:
+    containerPort: 80
+    serviceType: ClusterIP
+    resources:
+      requests:
+        cpu: "5m"
+        memory: "32Mi"
+      limits:
+        cpu: "10m"
+        memory: "64Mi"
+
+  server:
+    configs:
+      NODE_ENV: "production"
+    containerPort: 8080
+    serviceType: ClusterIP
+    resources:
+      requests:
+        cpu: "50m"
+        memory: "256Mi"
+      limits:
+        cpu: "100m"
+        memory: "512Mi"
+    ingress:
+      enabled: false
+
+  hpa:
+    enabled: true
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 80
+
+  imageTag: latest
+
+networkPolicy:
+  restrictEgress: true
+
+monitoring:
+  enabled: false
+
+aws:
+  accountId: "<YOUR_AWS_ACCOUNT_ID>"
+  region: "<YOUR_AWS_REGION>"
+
+ingress:
+  enabled: true
+  sharedClassName: "shared-alb"
+
+  sslRedirect: "443"
+  listenPorts: '[{"HTTP": 80}, {"HTTPS": 443}]'
+
+  certificateArns:
+    - "<YOUR_ACM_CERTIFICATE_ARN>"
+
+tags:
+  - key: ManageBy
+    value: "helm"
+
+projectName: my-app
+environment: dev

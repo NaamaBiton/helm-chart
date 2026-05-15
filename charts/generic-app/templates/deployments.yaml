@@ -1,0 +1,140 @@
+{{- range $app := .Values.applications}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{$app.type}}-{{$app.name}}
+  namespace: {{$.Values.environment}}-{{$.Values.projectName}}
+  labels:
+    {{- include "generic-app.labels" (dict "Chart" $.Chart "Release" $.Release "Values" $.Values "app" $app "component" "deployment") | nindent 4 }}
+spec:
+  {{- if and (hasKey $app "hpa") (not $app.hpa.enabled)}}
+  replicas: {{$app.replicas | default 1}}
+  {{- end}}
+  selector:
+    matchLabels:
+      {{- include "generic-app.selectorLabels" (dict "Chart" $.Chart "Release" $.Release "app" $app) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "generic-app.selectorLabels" (dict "Chart" $.Chart "Release" $.Release "app" $app) | nindent 8 }}
+    spec:
+      {{- if $app.awsRole}}
+      serviceAccountName: {{$app.type}}-{{$app.name}}-sa
+      {{- else if $app.serviceAccount}}
+      serviceAccountName: {{ $app.serviceAccount}}
+      {{- else if $app.imageRepo}}
+      serviceAccountName: ecr-service-account
+      {{- end}}
+
+      {{- if not $app.runAsRoot}}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+      {{- end}}
+
+      containers:
+        - name: {{$app.name}}
+          image: {{$app.imageRepo}}:{{$app.imageTag | default $.Values.defaults.imageTag}}
+          {{- include "generic-app.resources" (dict "app" $app "Values" $.Values) | nindent 10}}
+
+          {{- if not (and (hasKey $app "disableProbes") (eq $app.disableProbes true))}}
+          {{- if (eq $app.type "client")}}
+          startupProbe:
+            httpGet:
+              path: {{$app.probePath | default "/"}}
+              port: {{$app.containerPort | default $.Values.defaults.client.containerPort}}
+            initialDelaySeconds: {{($app.startupProbe).initialDelaySeconds | default 2}}
+            periodSeconds: 10
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: {{$app.probePath | default "/"}}
+              port: {{$app.containerPort | default $.Values.defaults.client.containerPort}}
+            initialDelaySeconds: {{($app.readinessProbe).initialDelaySeconds | default 5}}
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: {{$app.probePath | default "/"}}
+              port: {{$app.containerPort | default $.Values.defaults.client.containerPort}}
+            initialDelaySeconds: {{($app.livenessProbe).initialDelaySeconds | default 30}}
+            periodSeconds: 10
+            failureThreshold: 3
+          {{- else}}
+          startupProbe:
+            httpGet:
+              path: {{$app.probePath | default "/health"}}
+              port: {{$app.containerPort | default $.Values.defaults.server.containerPort}}
+            initialDelaySeconds: {{($app.startupProbe).initialDelaySeconds | default 10}}
+            periodSeconds: 5
+            failureThreshold: 20
+          readinessProbe:
+            httpGet:
+              path: {{$app.probePath | default "/health"}}
+              port: {{$app.containerPort | default $.Values.defaults.server.containerPort}}
+            initialDelaySeconds: {{($app.readinessProbe).initialDelaySeconds | default 15}}
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: {{$app.probePath | default "/health"}}
+              port: {{$app.containerPort | default $.Values.defaults.server.containerPort}}
+            initialDelaySeconds: {{($app.livenessProbe).initialDelaySeconds | default 45}}
+            periodSeconds: 10
+            failureThreshold: 3
+          {{- end}}
+          {{- end}}
+
+          ports:
+            - containerPort: {{$app.containerPort | default (ternary $.Values.defaults.client.containerPort $.Values.defaults.server.containerPort (eq $app.type "client"))}}
+              name: {{$app.name}}-port
+
+          envFrom:
+            - configMapRef:
+                name: {{$app.type}}-{{$app.name}}-cm
+          {{- range $app.secrets}}
+            - secretRef:
+                name: {{.name}}
+          {{- end}}
+          {{- if not $app.allowWritableFilesystem}}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+              - ALL
+          {{- end}}
+          {{- if $app.volumeMounts}}
+          volumeMounts:
+            {{- range $app.volumeMounts}}
+            - name: {{.name}}
+              mountPath: {{.mountPath}}
+              {{- if .readOnly}}
+              readOnly: {{.readOnly}}
+              {{- end}}
+            {{- end}}
+          {{- end}}
+
+      {{- if $app.volumes}}
+      volumes:
+        {{- range $app.volumes}}
+        - name: {{.name}}
+          {{- if .configMap}}
+          configMap:
+            name: {{.configMap.name}}
+          {{- else if .secret}}
+          secret:
+            secretName: {{.secret.secretName}}
+          {{- else if .persistentVolumeClaim}}
+          persistentVolumeClaim:
+            claimName: {{.persistentVolumeClaim.claimName}}
+          {{- else if .emptyDir}}
+          emptyDir: {}
+          {{- end}}
+        {{- end}}
+      {{- end}}
+---
+{{- end}}

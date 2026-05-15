@@ -1,0 +1,165 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["applications", "aws", "environment", "projectName"],
+  "properties": {
+    "applications": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "configs": {
+            "type": "object",
+            "properties": {
+              "CONFIG_ENV": { "type": "string" },
+              "NODE_ENV": { "type": "string" },
+              "PORT": { "type": "integer" }
+            }
+          },
+          "resources": {
+            "type": "object",
+            "properties": {
+              "requests": {
+                "type": "object",
+                "required": ["cpu", "memory"],
+                "properties": {
+                  "cpu": { "type": "string" },
+                  "memory": { "type": "string" }
+                }
+              },
+              "limits": {
+                "type": "object",
+                "properties": {
+                  "cpu": { "type": "string" },
+                  "memory": { "type": "string" }
+                }
+              }
+            },
+            "required": ["requests"]
+          },
+          "containerPort": { "type": "integer" },
+          "imageRepo": {
+            "oneOf": [
+              { "type": "string" },
+              {
+                "type": "object",
+                "required": ["repository", "tag"],
+                "properties": {
+                  "repository": { "type": "string" },
+                  "tag": { "type": "string" }
+                }
+              }
+            ]
+          },
+          "name": { "type": "string" },
+          "probePath": { "type": "string" },
+          "startupProbe": {
+            "type": "object",
+            "properties": {
+              "initialDelaySeconds": { "type": "integer" }
+            }
+          },
+          "readinessProbe": {
+            "type": "object",
+            "properties": {
+              "initialDelaySeconds": { "type": "integer" }
+            }
+          },
+          "replicas": { "type": "integer" },
+          "ingress": {
+            "oneOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "enabled": { "type": "boolean" },
+                    "host": { "type": "string" },
+                    "path": { "type": "string" }
+                  },
+                  "if": {
+                    "properties": { "enabled": { "const": true } }
+                  },
+                  "then": {
+                    "required": ["host", "path"]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "enabled": { "type": "boolean" },
+                  "host": { "type": "string" },
+                  "path": { "type": "string" }
+                }
+              }
+            ]
+          },
+          "ingresses": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "host": { "type": "string" },
+                "name": { "type": "string" },
+                "path": { "type": "string" }
+              },
+              "required": ["host", "path"]
+            }
+          },
+          "secrets": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string" },
+                "path": { "type": "string" }
+              },
+              "required": ["name", "path"]
+            }
+          },
+          "serviceType": {
+            "type": "string",
+            "enum": ["ClusterIP", "NodePort", "LoadBalancer"]
+          },
+          "type": { "type": "string" },
+          "awsRole": { "type": "string" },
+          "runAsRoot": { "type": "boolean" },
+          "cloudfront": { "type": "boolean" },
+          "nginxImage": { "type": "string" },
+          "nginxVersion": { "type": "string" },
+          "nginxContainerPort": { "type": "integer" }
+        },
+        "if": {
+          "properties": {
+            "type": { "enum": ["client", "server"] }
+          },
+          "required": ["type"]
+        },
+        "then": {
+          "required": ["containerPort", "imageRepo", "name", "type"],
+          "anyOf": [{ "required": ["ingress"] }, { "required": ["ingresses"] }]
+        }
+      }
+    },
+    "aws": {
+      "type": "object",
+      "required": ["accountId", "region"],
+      "properties": {
+        "accountId": { "type": "string" },
+        "region": { "type": "string" }
+      }
+    },
+    "environment": { "type": "string" },
+    "projectName": { "type": "string" },
+    "hpa": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "maxReplicas": { "type": "integer" },
+        "targetCPUUtilizationPercentage": { "type": "integer" },
+        "targetMemoryUtilizationPercentage": { "type": "integer" }
+      }
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{{- range $app := .Values.applications}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{$app.type}}-{{$app.name}}-service
+  namespace: {{$.Values.environment}}-{{$.Values.projectName}}
+  labels:
+    {{- include "generic-app.labels" (dict "Chart" $.Chart "Release" $.Release "Values" $.Values "app" $app "component" "service") | nindent 4 }}
+  {{- if $app.healthEndpoint }}
+  annotations:
+    alb.ingress.kubernetes.io/healthcheck-path: {{$app.healthEndpoint | quote}}
+  {{- end }}
+spec:
+  selector:
+    {{- include "generic-app.selectorLabels" (dict "Chart" $.Chart "Release" $.Release "app" $app) | nindent 4 }}
+  ports:
+  - protocol: TCP
+    {{- if eq $app.type "client" }}
+    port: 80
+    targetPort: {{$app.containerPort | default (index $.Values.defaults $app.type "containerPort") | default 8081}}
+    {{- else }}
+    port: {{$app.containerPort | default (index $.Values.defaults $app.type "containerPort") | default 8080}}
+    targetPort: {{$app.containerPort | default (index $.Values.defaults $app.type "containerPort") | default 8080}}
+    {{- end }}
+  type: {{- if and $.Values.ingress $.Values.ingress.enabled }} ClusterIP {{ else }} {{ $app.serviceType }} {{ end }}
+{{- end}}
